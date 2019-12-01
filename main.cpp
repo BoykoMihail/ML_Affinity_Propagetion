@@ -69,8 +69,8 @@ bool pred(const std::pair< int, int > &a, const std::pair< int, int > &b) {
 int main(int argc, char** argv) {
 
     Graph* graph = new Graph; // граф пользователей
-    int maxit = 150;
-    double damping = 0;
+    int maxit = 250;
+    double damping = 0.1;
     std::vector<double> Results(0);
 
     // Считываем граф пользователей
