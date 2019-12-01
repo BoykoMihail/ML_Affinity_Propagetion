@@ -69,7 +69,7 @@ bool pred(const std::pair< int, int > &a, const std::pair< int, int > &b) {
 int main(int argc, char** argv) {
 
     Graph* graph = new Graph; // граф пользователей
-    int maxit = 250;
+    int maxit = 150;
     double damping = 0.1;
     std::vector<double> Results(0);
 
@@ -85,8 +85,10 @@ int main(int argc, char** argv) {
 
     vector<int> examplar(graph->n, -1); // К какому классу принадлежит i-ый экземпляр
 
+    // Кластеризация
     clusteringGraph(graph, examplar, maxit, damping);
 
+    // Shuffle
     std::vector<int> indexes(examplar.size());
     for (int i = 0; i < examplar.size(); ++i) {
         indexes[i] = i;
@@ -95,6 +97,7 @@ int main(int argc, char** argv) {
     std::mt19937 g(rd());
     std::shuffle(indexes.begin(), indexes.end(), g);
 
+    
     int crossValCount = examplar.size() / 5;
 
     for (int cr = 0; cr < 5; cr++) {
@@ -118,51 +121,55 @@ int main(int argc, char** argv) {
             }
         }
 
-        // Считаем количества вхождений мест для каждого кластера
-        std::map< int, std::map<int, int>> cluster;
+        std::map<int, int> topByTrainAll;
         for (int i = 0; i < vecTrain.size(); ++i) {
             for (int j = 0; j < vecTrain[i].size(); ++j) {
-                cluster[examplarTrain[i]][vecTrain[i][j]]++;
+                topByTrainAll[vecTrain[i][j]]++;
             }
         }
 
-        int counttLess = 0;
-        int counttUp = 0;
+        std::vector < std::pair< int, int > > TOPLocationclusterAllTrain;
+
+        std::vector< std::pair< int, int > > veccc(topByTrainAll.begin(), topByTrainAll.end());
+        std::sort(veccc.begin(), veccc.end(), pred);
+        TOPLocationclusterAllTrain = std::vector < std::pair< int, int > >(veccc.begin(), veccc.begin() + (veccc.size() < 10 ? veccc.size() : 10));
+
+        // Считаем количества вхождений мест для каждого кластера
+        std::map< int, std::map<int, int>> topByTrainInEachCluster;
+        for (int i = 0; i < vecTrain.size(); ++i) {
+            for (int j = 0; j < vecTrain[i].size(); ++j) {
+                topByTrainInEachCluster[examplarTrain[i]][vecTrain[i][j]]++;
+            }
+        }
+
+        // Одбираем Top-10
         std::map< int, std::vector < std::pair< int, int > > > TOPLocationcluster;
 
-        for (std::pair< int, std::map<int, int>> map : cluster) {
+        for (std::pair< int, std::map<int, int>> map : topByTrainInEachCluster) {
             std::vector< std::pair< int, int > > veccc(map.second.begin(), map.second.end());
             std::sort(veccc.begin(), veccc.end(), pred);
             TOPLocationcluster[map.first] = std::vector < std::pair< int, int > >(veccc.begin(), veccc.begin() + (veccc.size() < 10 ? veccc.size() : 10));
-            if (veccc.size() < 10) {
-                counttLess++;
-            } else {
-                counttUp++;
-            }
-        }
-        cout << " cr = " << cr << " counttLess = " << counttLess << " counttUp = " << counttUp << " div = " << (double) counttLess / (double) cluster.size() << " " << (double) counttUp / (double) cluster.size() << endl;
 
-        int currentSum = 0;
+        }
+        
+        // Считаем качество разбиения
         double AllSumm = 0;
-        counttLess = 0;
-        counttUp = 0;
         for (int i = 0; i < vecTest.size(); ++i) {
             if (TOPLocationcluster[examplarTest[i]].size() > 0) {
-                currentSum = 0;
                 for (int o = 0; o < TOPLocationcluster[examplarTest[i]].size(); o++) {
                     if (std::find(vecTest[i].begin(), vecTest[i].end(), TOPLocationcluster[examplarTest[i]][o].first) != vecTest[i].end()) {
-                        currentSum++;
+                        AllSumm++;
                     }
                 }
-                AllSumm += (double) currentSum;
-                counttUp++;
             } else {
-                counttLess++;
+                for (int o = 0; o < TOPLocationclusterAllTrain.size(); o++) {
+                    if (std::find(vecTest[i].begin(), vecTest[i].end(), TOPLocationclusterAllTrain[o].first) != vecTest[i].end()) {
+                        AllSumm++;
+                    }
+                }
             }
         }
         cout << "AllSumm/vecTest.size() = " << AllSumm / (double) vecTest.size() << endl;
-        cout << "AllSumm/counttUp = " << AllSumm / (double) counttUp << endl;
-        cout << " counttLess = " << counttLess << " counttUp = " << counttUp << endl;
         Results.push_back(AllSumm / (double) vecTest.size());
         cout << "--------------------------" << endl;
     }
@@ -244,7 +251,7 @@ void read_training_text_edges(char* data, Graph * graph) {
     }
 
     for (int i = 0; i < graph->n; ++i) {
-        edges.push_back(Edge(i, i, -100000));
+        edges.push_back(Edge(i, i, -2));
     }
 
     for (size_t i = 0; i < edges.size(); ++i) {
