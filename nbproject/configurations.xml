@@ -36,6 +36,16 @@
         <rebuildPropChanged>false</rebuildPropChanged>
       </toolsSet>
       <compileType>
+        <ccTool>
+          <incDir>
+            <pElem>/usr/include/opencv2</pElem>
+          </incDir>
+        </ccTool>
+        <linkerTool>
+          <linkerAddLib>
+            <pElem>/usr/include/opencv2</pElem>
+          </linkerAddLib>
+        </linkerTool>
       </compileType>
       <item path="Statistic.h" ex="false" tool="3" flavor2="0">
       </item>

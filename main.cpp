@@ -69,9 +69,10 @@ bool pred(const std::pair< int, int > &a, const std::pair< int, int > &b) {
 int main(int argc, char** argv) {
 
     Graph* graph = new Graph; // граф пользователей
-    int maxit = 150;
+    int maxit = 30;
     double damping = 0.1;
     std::vector<double> Results(0);
+    std::vector<double> ResultsAll(0);
 
     // Считываем граф пользователей
     read_training_text_edges("/home/boyko_mihail/NetBeansProjects/course_Ml/Boyko/AP/Gowalla_edges.txt", graph);
@@ -88,6 +89,15 @@ int main(int argc, char** argv) {
     // Кластеризация
     clusteringGraph(graph, examplar, maxit, damping);
 
+
+    std::ofstream myfileHist;
+    myfileHist.open("/home/boyko_mihail/NetBeansProjects/course_Ml/Boyko/AP/AfinityPropagetion_Boyko/Results_Hist.csv");
+    for (int i = 0; i < examplar.size(); ++i) {
+        myfileHist << examplar[i] << ",";
+    }
+    myfileHist << "\n";
+    myfileHist.close();
+
     // Shuffle
     std::vector<int> indexes(examplar.size());
     for (int i = 0; i < examplar.size(); ++i) {
@@ -97,7 +107,7 @@ int main(int argc, char** argv) {
     std::mt19937 g(rd());
     std::shuffle(indexes.begin(), indexes.end(), g);
 
-    
+
     int crossValCount = examplar.size() / 5;
 
     for (int cr = 0; cr < 5; cr++) {
@@ -151,10 +161,21 @@ int main(int argc, char** argv) {
             TOPLocationcluster[map.first] = std::vector < std::pair< int, int > >(veccc.begin(), veccc.begin() + (veccc.size() < 10 ? veccc.size() : 10));
 
         }
-        
+
         // Считаем качество разбиения
         double AllSumm = 0;
+        double AllSummTopGlobal = 0;
+        int sizeLocation = 0;
         for (int i = 0; i < vecTest.size(); ++i) {
+            sizeLocation += vecTest[i].size();
+
+            for (int o = 0; o < TOPLocationclusterAllTrain.size(); o++) {
+                if (std::find(vecTest[i].begin(), vecTest[i].end(), TOPLocationclusterAllTrain[o].first) != vecTest[i].end()) {
+                    AllSummTopGlobal++;
+                }
+            }
+
+
             if (TOPLocationcluster[examplarTest[i]].size() > 0) {
                 for (int o = 0; o < TOPLocationcluster[examplarTest[i]].size(); o++) {
                     if (std::find(vecTest[i].begin(), vecTest[i].end(), TOPLocationcluster[examplarTest[i]][o].first) != vecTest[i].end()) {
@@ -169,8 +190,10 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        cout << "AllSumm/vecTest.size() = " << AllSumm / (double) vecTest.size() << endl;
-        Results.push_back(AllSumm / (double) vecTest.size());
+        cout << "AllSumm/sizeLocation = " << AllSumm / (double) sizeLocation << endl;
+        Results.push_back(AllSumm / (double) sizeLocation);
+        cout << "AllSummTopGlobal/sizeLocation = " << AllSummTopGlobal / (double) sizeLocation << endl;
+        ResultsAll.push_back(AllSummTopGlobal / (double) sizeLocation);
         cout << "--------------------------" << endl;
     }
 
@@ -179,9 +202,15 @@ int main(int argc, char** argv) {
 
     Statistic::findeStatistic(Results, M, sig);
 
+    double M2 = 0;
+    double sig2 = 0;
+
+    Statistic::findeStatistic(ResultsAll, M2, sig2);
+
     std::ofstream myfile;
     myfile.open("/home/boyko_mihail/NetBeansProjects/course_Ml/Boyko/AP/AfinityPropagetion_Boyko/Results_Table.csv");
     myfile << ",1,2,3,4,5,E,SD,\n";
+    myfile << "Metric: ," << (ResultsAll[0]) << "," << (ResultsAll[1]) << "," << (ResultsAll[2]) << "," << (ResultsAll[3]) << "," << (ResultsAll[4]) << "," << M2 << "," << sig2 << ",\n";
     myfile << "Metric: ," << (Results[0]) << "," << (Results[1]) << "," << (Results[2]) << "," << (Results[3]) << "," << (Results[4]) << "," << M << "," << sig << ",\n";
 
     myfile.close();
@@ -251,14 +280,12 @@ void read_training_text_edges(char* data, Graph * graph) {
     }
 
     for (int i = 0; i < graph->n; ++i) {
-        edges.push_back(Edge(i, i, -2));
+        edges.push_back(Edge(i, i, -1e300));
     }
 
     for (size_t i = 0; i < edges.size(); ++i) {
         Edge* p = &edges[i];
-        // add small noise to avoid degeneracies
         p->similarity += (1e-16 * p->similarity + 1e-300) * (rand() / (RAND_MAX + 1.0));
-        // add out/in edges to vertices
         graph->outEdges[p->source].push_back(p);
         graph->inEdges[p->destination].push_back(p);
     }
@@ -361,3 +388,24 @@ bool updateExamplars(Graph* graph, vector<int>& examplar) {
     }
     return changed;
 }
+
+//void drawHist(const vector<int>& data, Mat3b& dst, int binSize = 3, int height = 0) {
+//    int max_value = *max_element(data.begin(), data.end());
+//    int rows = 0;
+//    int cols = 0;
+//    if (height == 0) {
+//        rows = max_value + 10;
+//    } else {
+//        rows = max(max_value + 10, height);
+//    }
+//
+//    cols = data.size() * binSize;
+//
+//    dst = Mat3b(rows, cols, Vec3b(0, 0, 0));
+//
+//    for (int i = 0; i < data.size(); ++i) {
+//        int h = rows - data[i];
+//      //  rectangle(dst, Point(i*binSize, h), Point((i + 1) * binSize - 1, rows), (i % 2) ? Scalar(0, 100, 255) : Scalar(0, 0, 255), cv::FILLED);
+//    }
+//
+//}
